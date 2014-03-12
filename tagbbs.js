@@ -283,41 +283,34 @@ TagBBS.config(function($routeProvider, $locationProvider) {
         return $scope.post.header && $scope.post.header.thread || $scope.key;
     };
     // TODO cache the list
-    var list = bbs.list($scope.query() + " @" + $scope.key + " -10 +11");
-    var less = function(a, b) {
-        if (a.length != b.length) return a.length < b.length;
-        return a < b;
-    }
     $scope.prev = function() {
-        list.success(function(d) {
+        var q = $scope.query();
+        bbs.list(q + " @" + $scope.key + " -10").success(function(d) {
             var posts = d.result && d.result.posts || [];
-            for (var i=posts.length-1; i>=0; i--) {
-                if (less(posts[i].key, $scope.key)) {
-                    $location.url("/" + $scope.query() + "/" + posts[i].key);
-                    return
-                }
+            if (posts.length == 0) {
+                $scope.message = "the end of the list...";
+                $timeout(function() {
+                    $scope.message = "";
+                }, 2000);
+                return;
+            } else {
+                $location.url("/" + q + "/" + posts[posts.length-1].key);
             }
-            $scope.message = "the end of the list...";
-            $timeout(function() {
-                $scope.message = "";
-            }, 2000);
-
         });
     };
     $scope.next = function() {
-        list.success(function(d) {
+        var q = $scope.query();
+        bbs.list(q + " @" + $scope.key + " --1 +11").success(function(d) {
             var posts = d.result && d.result.posts || [];
-            for (var i=0; i<posts.length; i++) {
-                if (less($scope.key, posts[i].key)) {
-                    $location.url("/" + $scope.query() + "/" + posts[i].key);
-                    return
-                }
+            if (posts.length == 0) {
+                $scope.message = "the end of the list...";
+                $timeout(function() {
+                    $scope.message = "";
+                }, 2000);
+                return;
+            } else {
+                $location.url("/" + q + "/" + posts[0].key);
             }
-            $scope.message = "the end of the list...";
-            $timeout(function() {
-                $scope.message = "";
-            }, 2000);
-
         });
     };
     $scope.$watch("key", function(key) {
@@ -427,7 +420,7 @@ return {
        }
     };
 })
-.factory("bbs", function($http, $q) {
+.factory("bbs", function($http) {
     var sid = "";
     var serviceEndpoint;
 
@@ -449,19 +442,6 @@ return {
         });
         return promise;
     };
-
-    var wrap = function(promise) {
-        promise.success = function(fn) {
-            promise.then(fn);
-        }
-        promise.error = function(fn) {
-            promise.then(null, fn);
-        }
-        return promise;
-    };
-
-    // TODO revision
-    var postcache = {};
     return {
         setEndpoint: function(endpoint) {
             serviceEndpoint = endpoint;
@@ -493,19 +473,9 @@ return {
             return api("list", {query: query});
         },
         get: function(key) {
-            if (postcache[key]) {
-                var d = $q.defer();
-                d.resolve({result: postcache[key]});
-                return wrap(d.promise);
-            }
-            return api("get", {key: key}).success(function(d) {
-                if (d.result) {
-                    postcache[key] = d.result;
-                }
-            });
+            return api("get", {key: key});
         },
         put: function(key, rev, content) {
-            delete postcache[key];
             return api("put", {key:key, rev: rev, content: content});
         },
         session: function(_sid) {
@@ -543,8 +513,9 @@ return {
             $timeout(function() {
                 if (active > 0) {
                     ngProgressLite.start();
+                    ngProgressLite.inc();
                 }
-            }, 300);
+            }, 100);
         };
         var finish = function() {
             active--;
@@ -552,7 +523,7 @@ return {
                 if (active == 0) {
                     ngProgressLite.done();
                 }
-            }, 10);
+            }, 100);
         };
         return {
             'request': function(config) {
