@@ -1,5 +1,5 @@
 // TagBBS module
-var TagBBS = angular.module("TagBBS", ["ngRoute", "ngProgressLite"]);
+var TagBBS = angular.module("TagBBS", ["ngRoute", "ngProgressLite", "ngSanitize"]);
 
 TagBBS.config(function($routeProvider, $locationProvider) {
     $routeProvider
@@ -390,7 +390,7 @@ TagBBS.config(function($routeProvider, $locationProvider) {
                     scope.tags = post.header.tags;
                     scope.authors = post.header.authors;
                     if (post.header.raw) scope.source = post.body;
-                    else scope.body = $sce.trustAsHtml(markdown.makeHtml(post.body));
+                    else scope.body = markdown.makeHtml(post.body);
                 }
             };
         }
